@@ -19,18 +19,24 @@ jobs:
 
       - name: Check required files exist
         run: |
-          echo "=== Files in repo ==="
-          ls -la
           for f in app_android.py buildozer.spec; do
             if [ ! -f "$f" ]; then echo "ERROR: $f not found!"; exit 1
-            else echo "OK: $f"; fi
+            else echo "OK: $f found"; fi
           done
 
-      # Python 3.11 必须与 buildozer.spec 里的 python3==3.11.0 完全一致
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      # 关键修复：p4a 硬编码调用 /usr/bin/python3（系统 3.14.2）
+      # 必须强制将 /usr/bin/python3 指向 setup-python 安装的 3.11
+      - name: Force /usr/bin/python3 -> Python 3.11
+        run: |
+          PYTHON311=$(which python3)
+          echo "setup-python gave us: $($PYTHON311 --version)"
+          sudo ln -sf "$PYTHON311" /usr/bin/python3
+          echo "/usr/bin/python3 is now: $(/usr/bin/python3 --version)"
 
       - name: Install system dependencies
         run: |
@@ -46,28 +52,26 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-home-${{ runner.os }}-v4
+          key: buildozer-home-${{ runner.os }}-v5
           restore-keys: buildozer-home-${{ runner.os }}-
 
       - name: Cache .buildozer (local build)
         uses: actions/cache@v4
         with:
           path: .buildozer
-          key: buildozer-local-${{ hashFiles('buildozer.spec') }}-v4
+          key: buildozer-local-${{ hashFiles('buildozer.spec') }}-v5
           restore-keys: buildozer-local-
 
-      # buildozer==1.5.0 已从 PyPI 下架，必须从 git 安装
       - name: Install Buildozer and Cython
         run: |
           pip install --upgrade pip wheel setuptools
           pip install cython==0.29.37
-          pip install git+https://github.com/kivy/buildozer.git@stable
+          pip install git+https://github.com/kivy/buildozer.git
 
       - name: Build debug APK
         run: |
           buildozer -v android debug 2>&1 | tee build.log
-          echo "=== Build result ==="
-          ls -la bin/ 2>/dev/null || echo "bin/ not found - check build.log"
+          ls -la bin/ 2>/dev/null || echo "bin/ not found"
 
       - name: Upload APK and log
         uses: actions/upload-artifact@v4
