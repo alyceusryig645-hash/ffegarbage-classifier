@@ -8,8 +8,8 @@ source.main = app_android.py
 
 version = 1.0
 
-# python3 版本必须与 build_apk.yml 里 setup-python 的版本完全一致
-requirements = python3==3.11.0,kivy==2.3.0
+# 显式指定 hostpython3 与 python3 版本一致，避免 p4a 跟随系统 Python
+requirements = hostpython3==3.11.0,python3==3.11.0,kivy==2.3.0
 
 source.include_exts = py,json,otf,ttf
 source.include_patterns = NotoSansCJKsc-Regular.otf
