@@ -22,21 +22,15 @@ jobs:
           echo "=== Files in repo ==="
           ls -la
           for f in app_android.py buildozer.spec; do
-            if [ ! -f "$f" ]; then
-              echo "ERROR: $f not found!"
-              exit 1
-            else
-              echo "OK: $f"
-            fi
+            if [ ! -f "$f" ]; then echo "ERROR: $f not found!"; exit 1
+            else echo "OK: $f"; fi
           done
-          if [ ! -f "NotoSansCJKsc-Regular.otf" ]; then
-            echo "WARNING: Font file not found, Chinese may not display correctly"
-          else
-            echo "OK: NotoSansCJKsc-Regular.otf"
-          fi
 
-      - name: Check Python version
-        run: python3 --version
+      # Python 3.11 必须与 buildozer.spec 里的 python3==3.11.0 完全一致
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Install system dependencies
         run: |
@@ -46,35 +40,36 @@ jobs:
             openjdk-17-jdk autoconf libtool \
             pkg-config zlib1g-dev \
             libncurses5-dev libncursesw5-dev \
-            libffi-dev libssl-dev \
-            cmake ninja-build
+            libffi-dev libssl-dev cmake ninja-build
 
-      - name: Cache .buildozer global
+      - name: Cache ~/.buildozer (SDK/NDK)
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-global-${{ runner.os }}-v1
-          restore-keys: buildozer-global-${{ runner.os }}-
+          key: buildozer-home-${{ runner.os }}-v4
+          restore-keys: buildozer-home-${{ runner.os }}-
 
-      - name: Cache .buildozer local
+      - name: Cache .buildozer (local build)
         uses: actions/cache@v4
         with:
           path: .buildozer
-          key: buildozer-local-${{ hashFiles('buildozer.spec') }}-v1
+          key: buildozer-local-${{ hashFiles('buildozer.spec') }}-v4
           restore-keys: buildozer-local-
 
+      # buildozer==1.5.0 已从 PyPI 下架，必须从 git 安装
       - name: Install Buildozer and Cython
         run: |
-          pip3 install --upgrade pip wheel setuptools
-          pip3 install buildozer cython==0.29.37
+          pip install --upgrade pip wheel setuptools
+          pip install cython==0.29.37
+          pip install git+https://github.com/kivy/buildozer.git@stable
 
       - name: Build debug APK
         run: |
           buildozer -v android debug 2>&1 | tee build.log
           echo "=== Build result ==="
-          ls -la bin/ 2>/dev/null || echo "bin/ not found"
+          ls -la bin/ 2>/dev/null || echo "bin/ not found - check build.log"
 
-      - name: Upload APK artifact
+      - name: Upload APK and log
         uses: actions/upload-artifact@v4
         if: always()
         with:
